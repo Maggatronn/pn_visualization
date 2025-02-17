@@ -666,11 +666,11 @@ function App(): React.ReactElement {
   // Load all story files
   React.useEffect(() => {
     const storyFiles = [
-      { name: 'Maung', file: 'Pedja_codes.csv', available: true },
-      { name: 'Kamala 1', file: 'Kamala1.csv', available: true },
-      { name: 'Kamala 2', file: 'Kamala2.csv', available: true },
-      { name: 'Tim 1', file: 'Tim1.csv', available: true },
-      { name: 'Tim 2', file: 'Tim2.csv', available: true }
+      { name: 'Maung', file: `${process.env.PUBLIC_URL}/Pedja_codes.csv`, available: true },
+      { name: 'Kamala 1', file: `${process.env.PUBLIC_URL}/Kamala1.csv`, available: true },
+      { name: 'Kamala 2', file: `${process.env.PUBLIC_URL}/Kamala2.csv`, available: true },
+      { name: 'Tim 1', file: `${process.env.PUBLIC_URL}/Tim1.csv`, available: true },
+      { name: 'Tim 2', file: `${process.env.PUBLIC_URL}/Tim2.csv`, available: true }
     ];
 
     Promise.all(storyFiles.map(story => 
