@@ -1,0 +1,418 @@
+.App {
+  padding: 15px 0;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 24px;
+}
+
+.graph-container {
+  width: 100%;
+  margin: 0 0 15px 0;
+  padding: 15px 0;
+  background-color: white;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  overflow-x: hidden;
+  height: 220px;
+  display: flex;
+  justify-content: center;
+}
+
+.graph-container svg {
+  display: block;
+  margin: 0;
+  height: 180px;
+}
+
+.graph-container rect {
+  transition: opacity 0.3s ease;
+  rx: 2px;  /* Rounded corners */
+}
+
+.graph-container rect.story-bar {
+  pointer-events: none;
+}
+
+.graph-container rect.hover-area:hover + rect.story-bar {
+  opacity: 0.8 !important;
+}
+
+.graph-container rect[class*="-overlay"] {
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  rx: 2px;  /* Rounded corners */
+  transition: opacity 0.3s ease;
+}
+
+.graph-container rect.highlight-bar {
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.5));
+}
+
+/* Table highlighting */
+tr.highlighted {
+  /* background-color: rgba(255, 215, 0, 0.2) !important; */
+  transition: background-color 0.3s ease;
+}
+
+tr.highlighted td {
+  border-top: 2px solid #ffd700;
+  border-bottom: 2px solid #ffd700;
+}
+
+tr.highlighted td:first-child {
+  border-left: 2px solid #ffd700;
+}
+
+tr.highlighted td:last-child {
+  border-right: 2px solid #ffd700;
+}
+
+tr.highlighted td.has-value {
+  background-color: rgba(255, 215, 0, 0.5);
+  color: black;
+}
+
+.filters-container {
+  width: 100%;
+  margin: 0 0 15px 0;
+  padding: 10px 0;
+  background-color: white;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.filters-container h2 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  padding: 0 15px;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Allows the content to shrink below min-content */
+}
+
+.filter-group label {
+  font-weight: bold;
+  margin-bottom: 3px;
+  color: #555;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.filter-group select {
+  padding: 3px 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 11px;
+  width: 100%;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #1e88e5;
+  box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.2);
+}
+
+.table-container {
+  width: 100%;
+  margin: 0;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  height: calc(100vh - 600px);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+
+.table-scroll {
+  overflow: auto;
+  flex-grow: 1;
+  width: 100%;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+/* Main columns that should fit in view */
+.main-columns {
+  min-width: initial;
+  width: initial;
+}
+
+/* Extra columns that can scroll */
+.extra-columns {
+  min-width: initial;
+  width: initial;
+}
+
+/* Default column widths - update for main vs extra columns */
+td:first-child,
+th:first-child {
+  min-width: 60px;
+  width: 60px;
+}
+
+td:nth-child(2),
+th:nth-child(2) {
+  min-width: 200px;
+  width: 200px;
+}
+
+/* Core columns (Self, Us, Now) */
+td:nth-child(3),
+td:nth-child(4),
+td:nth-child(5),
+th:nth-child(3),
+th:nth-child(4),
+th:nth-child(5) {
+  min-width: 80px;
+  width: 80px;
+  position: sticky;
+  background-color: #fff;
+  z-index: 1;
+}
+
+th:nth-child(3) { left: 260px; }
+td:nth-child(3) { left: 260px; }
+th:nth-child(4) { left: 340px; }
+td:nth-child(4) { left: 340px; }
+th:nth-child(5) { left: 420px; }
+td:nth-child(5) { left: 420px; }
+
+/* Extra columns can scroll */
+td:nth-child(n+6),
+th:nth-child(n+6) {
+  min-width: 100px;
+  width: 100px;
+}
+
+.resize-handle {
+  position: absolute;
+  right: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background-color: transparent;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  /* background-color: #1e88e5; */
+}
+
+tr:hover {
+  /* background-color: rgba(255, 215, 0, 0.1) !important; */
+}
+
+td.has-value {
+  /* background-color: #1e88e5; */
+  color: black;
+  font-weight: bold;
+}
+
+tr:hover td.has-value {
+  /* background-color: #1976d2; */
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .filters-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .filters-grid {
+    grid-width: repeat(2, 1fr);
+  }
+}
+
+/* Basic table styles */
+th, td {
+  padding: 6px 8px;
+  text-align: left;
+  border: 1px solid #ddd;
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background-clip: padding-box;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  user-select: none;
+}
+
+/* Ensure sticky header stays above sticky columns */
+th:first-child,
+th:nth-child(2),
+th:nth-child(3),
+th:nth-child(4),
+th:nth-child(5) {
+  z-index: 3;
+}
+
+/* Fix background for sticky cells when scrolling */
+td[class*="sticky-col"] {
+  background-color: #fff;
+}
+
+th[class*="sticky-col"] {
+  background-color: #f8f9fa;
+}
+
+/* Style the axis */
+.graph-container .tick text {
+  font-size: 10px;
+  fill: #666;
+}
+
+.graph-container .tick line {
+  stroke: #ddd;
+}
+
+.graph-container .domain {
+  stroke: #ddd;
+}
+
+.story-selector {
+  width: 100%;
+  margin: 0 0 15px 0;
+  padding: 10px 0;
+  background-color: white;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.story-selector label {
+  font-weight: bold;
+  color: #555;
+  font-size: 14px;
+}
+
+.story-selector select {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 14px;
+  min-width: 150px;
+}
+
+.story-selector select:focus {
+  outline: none;
+  border-color: #1e88e5;
+  box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.2);
+}
+
+.statistics-container {
+  width: 100%;
+  margin: 0 0 15px 0;
+  padding: 15px 0;
+  background-color: white;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.stats-section {
+  flex: 1;
+  max-width: 500px;
+}
+
+.stats-section h3 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #333;
+  text-align: center;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 0 15px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.stat-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-weight: bold;
+  color: #333;
+  min-width: 45px;
+  text-align: right;
+}
+
+.stat-bar-container {
+  width: 100%;
+  height: 8px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stat-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+} 
