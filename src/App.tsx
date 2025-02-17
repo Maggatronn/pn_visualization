@@ -33,6 +33,49 @@ interface Filters {
   outcome: string;
 }
 
+function Legend() {
+  const colors = {
+    self: '#8b00ff', // Purple
+    us: '#0066cc',   // Blue
+    now: '#ffd700'   // Yellow
+  };
+
+  return (
+    <div className="legend-container">
+      <div className="legend-section">
+        {[
+          { label: 'Story of Self', color: colors.self },
+          { label: 'Story of Us', color: colors.us },
+          { label: 'Story of Now', color: colors.now }
+        ].map((item) => (
+          <div key={item.label} className="legend-item">
+            <div className="legend-box" style={{ backgroundColor: item.color, opacity: 0.7 }} />
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="legend-divider" />
+      <div className="legend-section">
+        <div className="legend-item">
+          <div className="legend-box" style={{ backgroundColor: 'white', border: '2px solid #666' }} />
+          <span>Challenge</span>
+        </div>
+        <div className="legend-item">
+          <div className="legend-box" style={{
+            backgroundImage: `linear-gradient(45deg, #666 12.5%, transparent 12.5%, transparent 37.5%, #666 37.5%, #666 62.5%, transparent 62.5%, transparent 87.5%, #666 87.5%)`,
+            backgroundSize: '8px 8px'
+          }} />
+          <span>Choice</span>
+        </div>
+        <div className="legend-item">
+          <div className="legend-box" style={{ backgroundColor: '#666' }} />
+          <span>Outcome</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, setHoverSource }: { 
   data: DataRow[], 
   filters: Filters, 
@@ -452,84 +495,6 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       }
     });
 
-    // Update legend to show only story types and narrative elements in gray
-    const legend = svg.append('g')
-      .attr('transform', `translate(${width + 10}, 0)`)
-      .attr('font-family', 'sans-serif')
-      .attr('font-size', 10);
-
-    // Story type legend
-    const storyLegend = [
-      { label: 'Story of Self', color: colors.self },
-      { label: 'Story of Us', color: colors.us },
-      { label: 'Story of Now', color: colors.now }
-    ];
-
-    storyLegend.forEach((item, i) => {
-      const g = legend.append('g')
-        .attr('transform', `translate(0, ${i * 20})`);
-
-      g.append('rect')
-        .attr('width', 15)
-        .attr('height', 15)
-        .attr('fill', item.color)
-        .attr('opacity', 0.7);
-
-      g.append('text')
-        .attr('x', 20)
-        .attr('y', 7.5)
-        .attr('dy', '0.35em')
-        .text(item.label);
-    });
-
-    // Add narrative elements legend in gray
-    const narrativeLegend = legend.append('g')
-      .attr('transform', `translate(0, ${storyLegend.length * 20 + 10})`);
-
-    // Challenge (outline)
-    narrativeLegend.append('rect')
-      .attr('width', 15)
-      .attr('height', 15)
-      .attr('fill', 'white')
-      .attr('stroke', '#666')
-      .attr('stroke-width', 2);
-
-    narrativeLegend.append('text')
-      .attr('x', 20)
-      .attr('y', 7.5)
-      .attr('dy', '0.35em')
-      .text('Challenge');
-
-    // Choice (striped)
-    const choiceLegend = narrativeLegend.append('g')
-      .attr('transform', `translate(0, 20)`);
-
-    choiceLegend.append('rect')
-      .attr('width', 15)
-      .attr('height', 15)
-      .attr('fill', 'url(#choice-pattern-gray)');
-
-    choiceLegend.append('text')
-      .attr('x', 20)
-      .attr('y', 7.5)
-      .attr('dy', '0.35em')
-      .text('Choice');
-
-    // Outcome (solid)
-    const outcomeLegend = narrativeLegend.append('g')
-      .attr('transform', `translate(0, 40)`);
-
-    outcomeLegend.append('rect')
-      .attr('width', 15)
-      .attr('height', 15)
-      .attr('fill', '#666');
-
-    outcomeLegend.append('text')
-      .attr('x', 20)
-      .attr('y', 7.5)
-      .attr('dy', '0.35em')
-      .text('Outcome');
-
     // Add gray pattern for choice
     defs.append('pattern')
       .attr('id', 'choice-pattern-gray')
@@ -545,9 +510,12 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
   }, [data, filters, hoveredLine, setHoveredLine, setHoverSource]);
 
   return (
-    <div className="graph-container">
-      <svg ref={svgRef}></svg>
-    </div>
+    <>
+      <Legend />
+      <div className="graph-container">
+        <svg ref={svgRef}></svg>
+      </div>
+    </>
   );
 }
 

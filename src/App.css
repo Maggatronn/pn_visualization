@@ -415,4 +415,40 @@ th[class*="sticky-col"] {
   height: 100%;
   border-radius: 4px;
   transition: width 0.3s ease;
+}
+
+.legend-container {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background-color: white;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.legend-section {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #333;
+}
+
+.legend-box {
+  width: 15px;
+  height: 15px;
+  border-radius: 2px;
+}
+
+.legend-divider {
+  width: 1px;
+  height: 20px;
+  background-color: #ddd;
 } 
