@@ -510,12 +510,12 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
   }, [data, filters, hoveredLine, setHoveredLine, setHoverSource]);
 
   return (
-    <>
+    <div className="graph-container">
       <Legend />
-      <div className="graph-container">
+      <div className="graph-svg-container">
         <svg ref={svgRef}></svg>
       </div>
-    </>
+    </div>
   );
 }
 
