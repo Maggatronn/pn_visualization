@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/pn_visualization/static/css/main.2813e37d.css",
+    "main.js": "/pn_visualization/static/js/main.4eae96a8.js",
+    "index.html": "/pn_visualization/index.html",
+    "main.2813e37d.css.map": "/pn_visualization/static/css/main.2813e37d.css.map",
+    "main.4eae96a8.js.map": "/pn_visualization/static/js/main.4eae96a8.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.2813e37d.css",
+    "static/js/main.4eae96a8.js"
+  ]
+}
