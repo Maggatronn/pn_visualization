@@ -18,6 +18,7 @@ interface DataRow {
   vulnerability: string;
   thirdPersonContent: string;
   codingNotes: string;
+  isHuman?: boolean;
 }
 
 interface ColumnWidth {
@@ -40,19 +41,41 @@ function Legend() {
     now: '#ffd700'   // Yellow
   };
 
+  const humanColors = {
+    self: '#d896ff', // Light Purple
+    us: '#66b3ff',   // Light Blue
+    now: '#ffe766'   // Light Yellow
+  };
+
   return (
     <div className="legend-container">
       <div className="legend-section">
-        {[
-          { label: 'Story of Self', color: colors.self },
-          { label: 'Story of Us', color: colors.us },
-          { label: 'Story of Now', color: colors.now }
-        ].map((item) => (
-          <div key={item.label} className="legend-item">
-            <div className="legend-box" style={{ backgroundColor: item.color, opacity: 0.7 }} />
-            <span>{item.label}</span>
-          </div>
-        ))}
+        <div style={{ marginRight: '20px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Model Annotations</div>
+          {[
+            { label: 'Story of Self', color: colors.self },
+            { label: 'Story of Us', color: colors.us },
+            { label: 'Story of Now', color: colors.now }
+          ].map((item) => (
+            <div key={item.label} className="legend-item">
+              <div className="legend-box" style={{ backgroundColor: item.color, opacity: 0.7 }} />
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Human Annotations</div>
+          {[
+            { label: 'Story of Self', color: humanColors.self },
+            { label: 'Story of Us', color: humanColors.us },
+            { label: 'Story of Now', color: humanColors.now }
+          ].map((item) => (
+            <div key={item.label} className="legend-item">
+              <div className="legend-box" style={{ backgroundColor: item.color, opacity: 0.7 }} />
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="legend-divider" />
       <div className="legend-section">
@@ -76,12 +99,13 @@ function Legend() {
   );
 }
 
-function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, setHoverSource }: { 
+function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, setHoverSource, isHuman }: { 
   data: DataRow[], 
   filters: Filters, 
   hoveredLine: string | null,
   setHoveredLine: (line: string | null) => void,
-  setHoverSource: (source: 'graph' | 'table' | null) => void
+  setHoverSource: (source: 'graph' | 'table' | null) => void,
+  isHuman: boolean
 }) {
   const svgRef = React.useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = React.useState<{
@@ -237,6 +261,12 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
   React.useEffect(() => {
     if (!data.length || !svgRef.current) return;
 
+    console.log('Rendering graph:', {
+      isHuman,
+      dataLength: data.length,
+      firstDataRow: data[0]
+    });
+
     // Clear previous graph
     d3.select(svgRef.current).selectAll('*').remove();
 
@@ -256,16 +286,23 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
+    // Helper function to check for positive values
+    const isPositive = (value: any): boolean => {
+      if (typeof value === 'number') return value === 1;
+      if (typeof value === 'string') return value === "1" || value === "2";
+      return false;
+    };
+
     // Process data for the graph
     const processedData = data
       .map((row, index) => ({
         sequenceNumber: index + 1,
-        self: Boolean(row.storyOfSelf),
-        us: Boolean(row.storyOfUs),
-        now: Boolean(row.storyOfNow),
-        challenge: Boolean(row.challenge),
-        choice: Boolean(row.choice),
-        outcome: Boolean(row.outcome),
+        self: isPositive(row.storyOfSelf),
+        us: isPositive(row.storyOfUs),
+        now: isPositive(row.storyOfNow),
+        challenge: isPositive(row.challenge),
+        choice: isPositive(row.choice),
+        outcome: isPositive(row.outcome),
         wordCount: row.text ? row.text.trim().split(/\s+/).length : 0,
         originalRow: row,
         startIndex: index + 1,
@@ -336,7 +373,11 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       .call(g => g.select('.domain').remove());  // Remove axis line
 
     // Define colors for story types
-    const colors = {
+    const colors = isHuman ? {
+      self: '#d896ff', // Light Purple
+      us: '#66b3ff',   // Light Blue
+      now: '#ffe766'   // Light Yellow
+    } : {
       self: '#8b00ff', // Purple
       us: '#0066cc',   // Blue
       now: '#ffd700'   // Yellow
@@ -507,11 +548,10 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       .attr('stroke-width', 2)
       .attr('opacity', 0.5);
 
-  }, [data, filters, hoveredLine, setHoveredLine, setHoverSource]);
+  }, [data, filters, hoveredLine, setHoveredLine, setHoverSource, isHuman]);
 
   return (
     <div className="graph-container">
-      <Legend />
       <div className="graph-svg-container">
         <svg ref={svgRef}></svg>
       </div>
@@ -577,9 +617,10 @@ function StoryStatistics({ data }: { data: DataRow[] }) {
 
 function App(): React.ReactElement {
   const [data, setData] = React.useState<DataRow[]>([]);
+  const [humanData, setHumanData] = React.useState<DataRow[]>([]);
   const [filteredData, setFilteredData] = React.useState<DataRow[]>([]);
   const [selectedStory, setSelectedStory] = React.useState<string>('');
-  const [allStories, setAllStories] = React.useState<{[key: string]: DataRow[]}>({});
+  const [allStories, setAllStories] = React.useState<{[key: string]: { model: DataRow[]; human: DataRow[] }}>({});
   const [columnWidths, setColumnWidths] = React.useState<ColumnWidth>({});
   const [resizing, setResizing] = React.useState<string | null>(null);
   const [startX, setStartX] = React.useState<number>(0);
@@ -634,88 +675,135 @@ function App(): React.ReactElement {
   // Load all story files
   React.useEffect(() => {
     const storyFiles = [
-      { name: 'Maung', file: `${process.env.PUBLIC_URL}/Pedja_codes.csv`, available: true },
-      { name: 'Kamala 1', file: `${process.env.PUBLIC_URL}/Kamala1.csv`, available: true },
-      { name: 'Kamala 2', file: `${process.env.PUBLIC_URL}/Kamala2.csv`, available: true },
-      { name: 'Tim 1', file: `${process.env.PUBLIC_URL}/Tim1.csv`, available: true },
-      { name: 'Tim 2', file: `${process.env.PUBLIC_URL}/Tim2.csv`, available: true }
+      { name: 'Kamala', file: `${process.env.PUBLIC_URL}/Kamala_LLM.csv`, humanFile: `${process.env.PUBLIC_URL}/KamalaHuman.csv` },
+      { name: 'James', file: `${process.env.PUBLIC_URL}/James_LLM.csv`, humanFile: `${process.env.PUBLIC_URL}/JamesHuman.csv` },
+      { name: 'Tim', file: `${process.env.PUBLIC_URL}/Tim_LLM.csv`, humanFile: `${process.env.PUBLIC_URL}/TimHuman.csv` }
     ];
 
     Promise.all(storyFiles.map(story => 
-      fetch(story.file)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Failed to load ${story.file}: ${response.statusText}`);
-          }
-          return response.text();
-        })
-        .then(csvText => {
-          console.log(`Loading ${story.name}'s data...`);
-          console.log(`CSV text length for ${story.name}:`, csvText.length);
-          const results = Papa.parse(csvText, {
-            header: true,
-            skipEmptyLines: true
-          });
-          
-          console.log(`Raw parsed data for ${story.name}:`, results.data.length, 'rows');
-          console.log(`Column headers for ${story.name}:`, Object.keys(results.data[0] || {}));
-
-          const processedData = (results.data as any[])
-            .map((row, index) => ({
-              lineNumber: (index + 1).toString(),
-              text: row['Text'] ? row['Text'].replace(/^["'\s]+|["'\s]+$/g, '').trim() : '',
-              storyOfSelf: row['Story of Self'] || row['Story of Self (Origin)'] || '',
-              storyOfUs: row['Story of Us'] || '',
-              storyOfNow: row['Story of Now'] || '',
-              challenge: row['Challenge'] || '',
-              choice: row['Choice'] || '',
-              outcome: row['Outcome'] || '',
-              specificDetails: row['Specific/Vivid Details'] || '',
-              hope: row['Hope'] || '',
-              values: row['Values'] || '',
-              vulnerability: row['Vulnerability'] || '',
-              thirdPersonContent: row['Third-Person Content'] || '',
-              codingNotes: row['Coding Notes'] || ''
-            }))
-            .filter(row => {
-              const hasText = row.text.length > 0 && row.text !== 'Wow.' && row.text !== 'Thank you.' && row.text !== 'Absolutely.';
-              const originalRow = results.data[parseInt(row.lineNumber) - 1] as { Text?: string };
-              if (!hasText && originalRow?.Text) {
-                console.log(`Filtered out row ${row.lineNumber} with text:`, originalRow.Text);
-              }
-              return hasText;
+      Promise.all([
+        // Load model annotations
+        fetch(story.file)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Failed to load ${story.file}: ${response.statusText}`);
+            }
+            return response.text();
+          })
+          .then(csvText => {
+            const results = Papa.parse(csvText, {
+              header: true,
+              skipEmptyLines: true
             });
-
-          console.log(`Processed ${story.name}'s data: ${processedData.length} rows`);
-          if (processedData.length === 0) {
-            console.log(`Warning: ${story.name} has 0 rows after processing. First raw row:`, results.data[0]);
-          }
-          return { name: story.name, data: processedData };
-        })
+            
+            return processData(results.data as any[], false);
+          }),
+        // Load human annotations
+        fetch(story.humanFile)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Failed to load ${story.humanFile}: ${response.statusText}`);
+            }
+            return response.text();
+          })
+          .then(csvText => {
+            const results = Papa.parse(csvText, {
+              header: true,
+              skipEmptyLines: true
+            });
+            
+            return processData(results.data as any[], true);
+          })
+      ]).then(([modelData, humanData]) => ({
+        name: story.name,
+        modelData,
+        humanData
+      }))
     ))
     .then(results => {
-      const storiesData = results.reduce((acc, { name, data }) => {
-        acc[name] = data;
+      const storiesData = results.reduce((acc, { name, modelData, humanData }) => {
+        acc[name] = {
+          model: modelData,
+          human: humanData
+        };
         return acc;
-      }, {} as {[key: string]: DataRow[]});
+      }, {} as {[key: string]: { model: DataRow[]; human: DataRow[] }});
       
-      console.log('All stories loaded. Available stories:', Object.keys(storiesData));
       setAllStories(storiesData);
       setData([]);
+      setHumanData([]);
     })
     .catch(error => {
       console.error('Error loading CSV files:', error);
     });
   }, []);
 
+  // Process data function
+  const processData = (rawData: any[], isHuman: boolean) => {
+    console.log('Processing data:', {
+      isHuman,
+      rawDataLength: rawData.length,
+      firstRow: rawData[0]
+    });
+    
+    const processedData = rawData
+      .map((row, index) => {
+        // Helper function to convert annotation values
+        const convertAnnotation = (value: any): string => {
+          if (value === undefined || value === null || value === '') return '';
+          // Convert numeric 1 to string "1" and numeric 0 to empty string
+          if (typeof value === 'number') return value === 1 ? "1" : "";
+          return value;
+        };
+
+        return {
+          lineNumber: (index + 1).toString(),
+          text: row['Text'] || row['text'] || '',
+          storyOfSelf: convertAnnotation(row['Story of Self'] || row['Story of Self (Origin)'] || row['self']),
+          storyOfUs: convertAnnotation(row['Story of Us'] || row['us']),
+          storyOfNow: convertAnnotation(row['Story of Now'] || row['now']),
+          challenge: convertAnnotation(row['Challenge'] || row['challenge']),
+          choice: convertAnnotation(row['Choice'] || row['choice']),
+          outcome: convertAnnotation(row['Outcome'] || row['outcome']),
+          specificDetails: row['Specific/Vivid Details'] || row['Sensory/Vivid Details'] || '',
+          hope: row['Hope'] || '',
+          values: row['Values'] || '',
+          vulnerability: row['Vulnerability'] || '',
+          thirdPersonContent: row['Third-Person Content'] || '',
+          codingNotes: row['Coding Notes'] || '',
+          isHuman
+        };
+      })
+      .filter(row => {
+        const hasText = row.text.length > 0 && row.text !== 'Wow.' && row.text !== 'Thank you.' && row.text !== 'Absolutely.';
+        return hasText;
+      });
+
+    console.log('Processed data:', {
+      isHuman,
+      processedDataLength: processedData.length,
+      firstProcessedRow: processedData[0]
+    });
+
+    return processedData;
+  };
+
   // Handle story selection
   const handleStoryChange = (storyName: string) => {
-    console.log('Switching to story:', storyName); // Debug log
-    console.log('Available stories:', allStories); // Debug log
     setSelectedStory(storyName);
-    const newData = allStories[storyName] || [];
-    console.log('New data for story:', newData); // Debug log
-    setData(newData);
+    const storyData = allStories[storyName];
+    if (storyData) {
+      console.log('Loading story data:', {
+        modelDataLength: storyData.model.length,
+        humanDataLength: storyData.human.length,
+        storyName
+      });
+      setData(storyData.model || []);
+      setHumanData(storyData.human || []);
+    } else {
+      setData([]);
+      setHumanData([]);
+    }
   };
 
   // Update filtered data when data or filters change
@@ -796,12 +884,12 @@ function App(): React.ReactElement {
       .map((row, index) => ({
         startIndex: index + 1,
         endIndex: index + 1,
-        self: Boolean(row.storyOfSelf),
-        us: Boolean(row.storyOfUs),
-        now: Boolean(row.storyOfNow),
-        challenge: Boolean(row.challenge),
-        choice: Boolean(row.choice),
-        outcome: Boolean(row.outcome),
+        self: Boolean(row.storyOfSelf === "1" || row.storyOfSelf === "2" || String(row.storyOfSelf) === "1"),
+        us: Boolean(row.storyOfUs === "1" || row.storyOfUs === "2" || String(row.storyOfUs) === "1"),
+        now: Boolean(row.storyOfNow === "1" || row.storyOfNow === "2" || String(row.storyOfNow) === "1"),
+        challenge: Boolean(row.challenge === "1" || row.challenge === "2" || String(row.challenge) === "1"),
+        choice: Boolean(row.choice === "1" || row.choice === "2" || String(row.choice) === "1"),
+        outcome: Boolean(row.outcome === "1" || row.outcome === "2" || String(row.outcome) === "1"),
       }))
       .reduce((acc: any[], current) => {
         if (acc.length === 0) return [current];
@@ -961,13 +1049,32 @@ function App(): React.ReactElement {
         </div>
       </div>
 
-      <StoryDistributionGraph 
-        data={data} 
-        filters={filters} 
-        hoveredLine={hoveredLine}
-        setHoveredLine={setHoveredLine}
-        setHoverSource={setHoverSource}
-      />
+      <div className="visualizations-container">
+        <Legend />
+        <div className="visualization-section">
+          <h3>Model Annotations</h3>
+          <StoryDistributionGraph 
+            data={data} 
+            filters={filters} 
+            hoveredLine={hoveredLine}
+            setHoveredLine={setHoveredLine}
+            setHoverSource={setHoverSource}
+            isHuman={false}
+          />
+        </div>
+        
+        <div className="visualization-section">
+          <h3>Human Annotations</h3>
+          <StoryDistributionGraph 
+            data={humanData} 
+            filters={filters} 
+            hoveredLine={hoveredLine}
+            setHoveredLine={setHoveredLine}
+            setHoverSource={setHoverSource}
+            isHuman={true}
+          />
+        </div>
+      </div>
 
       <div className="table-container">
         <div className="table-scroll" ref={tableRef}>
