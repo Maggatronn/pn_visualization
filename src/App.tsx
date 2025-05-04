@@ -328,9 +328,14 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
 
     // Helper function to check for positive values
     const isPositive = (value: string | number | null | undefined): boolean => {
-      if (typeof value === 'number') return value === 1;
-      if (typeof value === 'string') return value === "1" || value === "2";
-      return false;
+      if (value === undefined || value === null || value === '') return false;
+      
+      // Convert to string and trim any whitespace
+      let strValue = String(value).trim();
+      
+      // Return true for any positive indicator
+      return strValue === "1" || strValue === "1.0" || strValue === "2" || strValue === "2.0" || 
+             strValue.toLowerCase() === "true" || strValue.toLowerCase() === "yes";
     };
 
     // Process data for the graph
@@ -618,7 +623,8 @@ function StoryStatistics({ data }: { data: DataRow[] }) {
   );
 
   // If no data, return all zeros
-  if (!data.length) {
+  if (!data || !data.length) {
+    console.log('No data available for statistics');
     const emptyStats = {
       self: 0,
       us: 0,
@@ -653,20 +659,33 @@ function StoryStatistics({ data }: { data: DataRow[] }) {
     );
   }
 
+  // Helper function to check if an annotation is positive
+  const isPositive = (value: string | undefined): boolean => {
+    if (!value) return false;
+    value = value.trim();
+    return value === "1" || value === "2" || value === "true" || value === "yes" || value === "True";
+  };
+
   // Calculate total words
   const totalWords = data.reduce((sum, row) => sum + (row.text ? row.text.trim().split(/\s+/).length : 0), 0);
 
+  // Log total words for debugging
+  console.log(`Total words: ${totalWords} from ${data.length} rows`);
+
   // Calculate percentages based on word count
   const stats = {
-    self: data.reduce((sum, row) => sum + (row.storyOfSelf ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
-    us: data.reduce((sum, row) => sum + (row.storyOfUs ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
-    now: data.reduce((sum, row) => sum + (row.storyOfNow ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
-    challenge: data.reduce((sum, row) => sum + (row.challenge ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
-    choice: data.reduce((sum, row) => sum + (row.choice ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
-    outcome: data.reduce((sum, row) => sum + (row.outcome ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
-    noStoryType: data.reduce((sum, row) => sum + (!row.storyOfSelf && !row.storyOfUs && !row.storyOfNow ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
-    noNarrativeElement: data.reduce((sum, row) => sum + (!row.challenge && !row.choice && !row.outcome ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100
+    self: data.reduce((sum, row) => sum + (isPositive(row.storyOfSelf) ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    us: data.reduce((sum, row) => sum + (isPositive(row.storyOfUs) ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    now: data.reduce((sum, row) => sum + (isPositive(row.storyOfNow) ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    challenge: data.reduce((sum, row) => sum + (isPositive(row.challenge) ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    choice: data.reduce((sum, row) => sum + (isPositive(row.choice) ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    outcome: data.reduce((sum, row) => sum + (isPositive(row.outcome) ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    noStoryType: data.reduce((sum, row) => sum + (!isPositive(row.storyOfSelf) && !isPositive(row.storyOfUs) && !isPositive(row.storyOfNow) ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    noNarrativeElement: data.reduce((sum, row) => sum + (!isPositive(row.challenge) && !isPositive(row.choice) && !isPositive(row.outcome) ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100
   };
+
+  // Log computed statistics for debugging
+  console.log('Computed statistics:', stats);
 
   return (
     <div className="statistics-container">
@@ -752,8 +771,8 @@ function App(): React.ReactElement {
   // Load all story files
   React.useEffect(() => {
     const storyFiles = [
-      { name: 'Kamala', file: `${process.env.PUBLIC_URL}/Kamala_LLM.csv`, humanFile: `${process.env.PUBLIC_URL}/KamalaHuman.csv` },
-      { name: 'James', file: `${process.env.PUBLIC_URL}/James_LLM.csv`, humanFile: `${process.env.PUBLIC_URL}/JamesHuman.csv` },
+      { name: 'Kamala', file: `${process.env.PUBLIC_URL}/Kamala_LLM_fixed.csv`, humanFile: `${process.env.PUBLIC_URL}/KamalaHuman.csv` },
+      { name: 'James', file: `${process.env.PUBLIC_URL}/James_LLM_fixed.csv`, humanFile: `${process.env.PUBLIC_URL}/JamesHuman.csv` },
       { name: 'Tim', file: `${process.env.PUBLIC_URL}/Tim_LLM.csv`, humanFile: `${process.env.PUBLIC_URL}/TimHuman.csv` }
     ];
 
@@ -761,22 +780,6 @@ function App(): React.ReactElement {
       Promise.all([
         // Load model annotations
         fetch(story.file)
-          .then(response => {
-            if (!response.ok) {
-              throw new Error(`Failed to load ${story.file}: ${response.statusText}`);
-            }
-            return response.text();
-          })
-          .then(csvText => {
-            const results = Papa.parse(csvText, {
-              header: true,
-              skipEmptyLines: true
-            });
-            
-            return processData(results.data as any[], false);
-          }),
-        // Load human annotations
-        fetch(story.humanFile)
           .then(response => {
             if (!response.ok) {
               throw new Error(`Failed to load ${story.file}: ${response.statusText}`);
@@ -844,14 +847,34 @@ function App(): React.ReactElement {
         // Helper function to convert annotation values
         const convertAnnotation = (value: string | number | undefined | null): string => {
           if (value === undefined || value === null || value === '') return '';
-          // Convert numeric 1 to string "1" and numeric 0 to empty string
-          if (typeof value === 'number') return value === 1 ? "1" : "";
-          return value;
+          
+          // Convert to string and trim any whitespace
+          let strValue = String(value).trim();
+          
+          // Normalize values
+          if (strValue === "0" || strValue === "0.0" || strValue.toLowerCase() === "false" || strValue.toLowerCase() === "no") {
+            return "";
+          }
+          
+          if (strValue === "1" || strValue === "1.0" || strValue === "2" || strValue === "2.0" || 
+              strValue.toLowerCase() === "true" || strValue.toLowerCase() === "yes") {
+            return "1";
+          }
+          
+          return strValue;
         };
+
+        // Make sure text is properly extracted
+        let text = '';
+        if (row['Text']) {
+          text = typeof row['Text'] === 'string' ? row['Text'].trim() : String(row['Text']);
+        } else if (row['text']) {
+          text = typeof row['text'] === 'string' ? row['text'].trim() : String(row['text']);
+        }
 
         return {
           lineNumber: (index + 1).toString(),
-          text: row['Text'] || row['text'] || '',
+          text: text,
           storyOfSelf: convertAnnotation(row['Story of Self'] || row['Story of Self (Origin)'] || row['self']),
           storyOfUs: convertAnnotation(row['Story of Us'] || row['us']),
           storyOfNow: convertAnnotation(row['Story of Now'] || row['now']),
@@ -868,7 +891,10 @@ function App(): React.ReactElement {
         };
       })
       .filter(row => {
-        const hasText = row.text.length > 0 && row.text !== 'Wow.' && row.text !== 'Thank you.' && row.text !== 'Absolutely.';
+        const hasText = row.text.length > 0 && 
+                      row.text !== 'Wow.' && 
+                      row.text !== 'Thank you.' && 
+                      row.text !== 'Absolutely.';
         return hasText;
       });
 
@@ -972,17 +998,27 @@ function App(): React.ReactElement {
       return;
     }
 
+    // Helper function to detect positive annotations
+    const isPositiveValue = (value: string | number | undefined): boolean => {
+      if (value === undefined || value === null) return false;
+      // Convert to string and trim any whitespace
+      let strValue = String(value).trim();
+      // Return true for any positive indicator
+      return strValue === "1" || strValue === "1.0" || strValue === "2" || strValue === "2.0" || 
+             strValue.toLowerCase() === "true" || strValue.toLowerCase() === "yes";
+    };
+
     // Process the data to find blocks
     const processedData = data
       .map((row, index) => ({
         startIndex: index + 1,
         endIndex: index + 1,
-        self: Boolean(row.storyOfSelf === "1" || row.storyOfSelf === "2" || String(row.storyOfSelf) === "1"),
-        us: Boolean(row.storyOfUs === "1" || row.storyOfUs === "2" || String(row.storyOfUs) === "1"),
-        now: Boolean(row.storyOfNow === "1" || row.storyOfNow === "2" || String(row.storyOfNow) === "1"),
-        challenge: Boolean(row.challenge === "1" || row.challenge === "2" || String(row.challenge) === "1"),
-        choice: Boolean(row.choice === "1" || row.choice === "2" || String(row.choice) === "1"),
-        outcome: Boolean(row.outcome === "1" || row.outcome === "2" || String(row.outcome) === "1"),
+        self: isPositiveValue(row.storyOfSelf),
+        us: isPositiveValue(row.storyOfUs),
+        now: isPositiveValue(row.storyOfNow),
+        challenge: isPositiveValue(row.challenge),
+        choice: isPositiveValue(row.choice),
+        outcome: isPositiveValue(row.outcome),
       }))
       .reduce((acc: TableBlockItem[], current) => {
         if (acc.length === 0) return [current];
@@ -1736,9 +1772,14 @@ const SideBySideTranscript = ({ modelData, humanData }: SideBySideTranscriptProp
   
   // Helper to check if a value is positive (1 or 2)
   const isPositiveValue = (value: string | number | undefined): boolean => {
-    if (typeof value === 'number') return value === 1;
-    if (typeof value === 'string') return value === "1" || value === "2";
-    return false;
+    if (value === undefined || value === null) return false;
+    
+    // Convert to string and trim any whitespace
+    let strValue = String(value).trim();
+    
+    // Return true for any positive indicator
+    return strValue === "1" || strValue === "1.0" || strValue === "2" || strValue === "2.0" || 
+           strValue.toLowerCase() === "true" || strValue.toLowerCase() === "yes";
   };
   
   // Create a unique key from tags to detect changes
