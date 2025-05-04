@@ -1,7 +1,67 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import Papa from 'papaparse';
 import * as d3 from 'd3';
+import html2canvas from 'html2canvas';
+
+// Add new interfaces
+interface RawDataRow {
+  [key: string]: string | number | null | undefined;
+  'Text'?: string;
+  'text'?: string;
+  'Story of Self'?: string | number;
+  'Story of Self (Origin)'?: string | number;
+  'self'?: string | number;
+  'Story of Us'?: string | number;
+  'us'?: string | number;
+  'Story of Now'?: string | number;
+  'now'?: string | number;
+  'Challenge'?: string | number;
+  'challenge'?: string | number;
+  'Choice'?: string | number;
+  'choice'?: string | number;
+  'Outcome'?: string | number;
+  'outcome'?: string | number;
+  'Specific/Vivid Details'?: string;
+  'Sensory/Vivid Details'?: string;
+  'Hope'?: string;
+  'Values'?: string;
+  'Vulnerability'?: string;
+  'Third-Person Content'?: string;
+  'Coding Notes'?: string;
+}
+
+interface TableBlockItem {
+  startIndex: number;
+  endIndex: number;
+  self: boolean;
+  us: boolean;
+  now: boolean;
+  challenge: boolean;
+  choice: boolean;
+  outcome: boolean;
+}
+
+interface ProcessedDataItem {
+  sequenceNumber: number;
+  self: boolean;
+  us: boolean;
+  now: boolean;
+  challenge: boolean;
+  choice: boolean;
+  outcome: boolean;
+  wordCount: number;
+  originalRow: DataRow;
+  startIndex: number;
+  endIndex: number;
+  position?: number;
+}
+
+interface GraphDataItem {
+  id: number;
+  top: number;
+  height: number;
+}
 
 interface DataRow {
   lineNumber: string;
@@ -41,17 +101,11 @@ function Legend() {
     now: '#ffd700'   // Yellow
   };
 
-  const humanColors = {
-    self: '#d896ff', // Light Purple
-    us: '#66b3ff',   // Light Blue
-    now: '#ffe766'   // Light Yellow
-  };
-
   return (
     <div className="legend-container">
       <div className="legend-section">
-        <div style={{ marginRight: '20px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Model Annotations</div>
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Story Types</div>
           {[
             { label: 'Story of Self', color: colors.self },
             { label: 'Story of Us', color: colors.us },
@@ -63,31 +117,16 @@ function Legend() {
             </div>
           ))}
         </div>
-        <div>
-          <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Human Annotations</div>
-          {[
-            { label: 'Story of Self', color: humanColors.self },
-            { label: 'Story of Us', color: humanColors.us },
-            { label: 'Story of Now', color: humanColors.now }
-          ].map((item) => (
-            <div key={item.label} className="legend-item">
-              <div className="legend-box" style={{ backgroundColor: item.color, opacity: 0.7 }} />
-              <span>{item.label}</span>
-            </div>
-          ))}
-        </div>
       </div>
       <div className="legend-divider" />
       <div className="legend-section">
+        <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Narrative Elements</div>
         <div className="legend-item">
           <div className="legend-box" style={{ backgroundColor: 'white', border: '2px solid #666' }} />
           <span>Challenge</span>
         </div>
         <div className="legend-item">
-          <div className="legend-box" style={{
-            backgroundImage: `linear-gradient(45deg, #666 12.5%, transparent 12.5%, transparent 37.5%, #666 37.5%, #666 62.5%, transparent 62.5%, transparent 87.5%, #666 87.5%)`,
-            backgroundSize: '8px 8px'
-          }} />
+          <div className="legend-box" style={{ backgroundColor: '#666666', opacity: 0.5 }} />
           <span>Choice</span>
         </div>
         <div className="legend-item">
@@ -213,11 +252,12 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
               </div>` : ''}
             ${content.choice ? `
               <div style="
+                background-color: ${grayColor}; 
+                opacity: 0.5;
                 padding: 2px 8px; 
                 border-radius: 12px; 
                 font-size: 11px;
-                color: ${grayColor};
-                ${stripePattern}
+                color: black;
               ">
                 Choice
               </div>` : ''}
@@ -287,7 +327,7 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
     // Helper function to check for positive values
-    const isPositive = (value: any): boolean => {
+    const isPositive = (value: string | number | null | undefined): boolean => {
       if (typeof value === 'number') return value === 1;
       if (typeof value === 'string') return value === "1" || value === "2";
       return false;
@@ -311,7 +351,7 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       .filter(row => row.wordCount > 0);
 
     // Merge consecutive blocks with same ratings
-    const mergedData = processedData.reduce((acc: any[], current, index) => {
+    const mergedData = processedData.reduce((acc: ProcessedDataItem[], current, index) => {
       if (index === 0) {
         return [current];
       }
@@ -364,7 +404,7 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
     const xAxis = d3.axisBottom(xScale);
     const tickValues = dataWithPosition.map(d => d.position);
     xAxis.tickValues(tickValues)
-        .tickFormat((d: any) => '')  // Remove tick labels
+        .tickFormat((d: d3.NumberValue) => '')  // Remove tick labels
         .tickSize(0);  // Remove tick lines
 
     svg.append('g')
@@ -373,15 +413,13 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       .call(g => g.select('.domain').remove());  // Remove axis line
 
     // Define colors for story types
-    const colors = isHuman ? {
-      self: '#d896ff', // Light Purple
-      us: '#66b3ff',   // Light Blue
-      now: '#ffe766'   // Light Yellow
-    } : {
+    const colors = {
       self: '#8b00ff', // Purple
       us: '#0066cc',   // Blue
       now: '#ffd700'   // Yellow
     };
+
+    const baseOpacity = 0.7;
 
     // Create patterns for narrative elements with dynamic colors
     const defs = svg.append('defs');
@@ -398,8 +436,20 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
         .attr('d', 'M-2,2 l4,-4 M0,8 l8,-8 M6,10 l4,-4')
         .attr('stroke', color)
         .attr('stroke-width', 2)
-        .attr('opacity', 0.5);
+        .attr('opacity', baseOpacity);
     });
+
+    // Create gray pattern for choice
+    defs.append('pattern')
+      .attr('id', 'choice-pattern-gray')
+      .attr('patternUnits', 'userSpaceOnUse')
+      .attr('width', 8)
+      .attr('height', 8)
+      .append('path')
+      .attr('d', 'M-2,2 l4,-4 M0,8 l8,-8 M6,10 l4,-4')
+      .attr('stroke', '#666')
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.5);
 
     // Create the bars group
     const bars = svg.append('g');
@@ -409,10 +459,11 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       const barWidth = xScale(d.wordCount) - 1;
       const x = xScale(d.position) + 1;
 
-      const getDominantStoryType = (data: any) => {
-        if (data.self) return 'self';
-        if (data.us) return 'us';
+      const getDominantStoryType = (data: ProcessedDataItem): 'self' | 'us' | 'now' | null => {
+        // Check in order of priority: now > us > self
         if (data.now) return 'now';
+        if (data.us) return 'us';
+        if (data.self) return 'self';
         return null;
       };
 
@@ -423,7 +474,7 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
         const [start, end] = hoveredLine.split(',').map(Number);
         return d.startIndex <= end && d.endIndex >= start;
       })() : false;
-      const baseOpacity = isHovered ? 1 : (isFiltered ? 0.7 : 0.1);
+      const currentOpacity = isHovered ? 1 : (isFiltered ? baseOpacity : 0.1);
 
       // Create a highlight effect for hovered bars
       if (isHovered) {
@@ -494,10 +545,10 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
             .attr('y', 2)
             .attr('width', barWidth)
             .attr('height', barHeight - 4)
-            .attr('fill', 'white')
+            .attr('fill', storyColor)
             .attr('stroke', storyColor)
             .attr('stroke-width', 2)
-            .attr('opacity', isHovered ? 1 : (isFiltered ? 0.7 : 0.1));
+            .attr('opacity', currentOpacity);
         }
 
         if (d.choice) {
@@ -508,7 +559,7 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
             .attr('width', barWidth)
             .attr('height', barHeight - 4)
             .attr('fill', `url(#choice-pattern-${dominantType})`)
-            .attr('opacity', isHovered ? 1 : (isFiltered ? 0.7 : 0.1));
+            .attr('opacity', currentOpacity);
         }
 
         if (d.outcome) {
@@ -519,7 +570,7 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
             .attr('width', barWidth)
             .attr('height', barHeight - 4)
             .attr('fill', storyColor)
-            .attr('opacity', isHovered ? 1 : (isFiltered ? 0.7 : 0.1));
+            .attr('opacity', currentOpacity);
         }
 
         // Base story type bar (render after narrative elements)
@@ -536,18 +587,6 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
       }
     });
 
-    // Add gray pattern for choice
-    defs.append('pattern')
-      .attr('id', 'choice-pattern-gray')
-      .attr('patternUnits', 'userSpaceOnUse')
-      .attr('width', 8)
-      .attr('height', 8)
-      .append('path')
-      .attr('d', 'M-2,2 l4,-4 M0,8 l8,-8 M6,10 l4,-4')
-      .attr('stroke', '#666')
-      .attr('stroke-width', 2)
-      .attr('opacity', 0.5);
-
   }, [data, filters, hoveredLine, setHoveredLine, setHoverSource, isHuman]);
 
   return (
@@ -560,19 +599,6 @@ function StoryDistributionGraph({ data, filters, hoveredLine, setHoveredLine, se
 }
 
 function StoryStatistics({ data }: { data: DataRow[] }) {
-  // Calculate percentages
-  const totalRows = data.length;
-  const stats = {
-    self: data.filter(row => row.storyOfSelf).length / totalRows * 100,
-    us: data.filter(row => row.storyOfUs).length / totalRows * 100,
-    now: data.filter(row => row.storyOfNow).length / totalRows * 100,
-    challenge: data.filter(row => row.challenge).length / totalRows * 100,
-    choice: data.filter(row => row.choice).length / totalRows * 100,
-    outcome: data.filter(row => row.outcome).length / totalRows * 100,
-    noStoryType: data.filter(row => !row.storyOfSelf && !row.storyOfUs && !row.storyOfNow).length / totalRows * 100,
-    noNarrativeElement: data.filter(row => !row.challenge && !row.choice && !row.outcome).length / totalRows * 100
-  };
-
   const StatBar = ({ label, value, color }: { label: string; value: number; color?: string }) => (
     <div className="stat-item">
       <div className="stat-label-group">
@@ -590,6 +616,57 @@ function StoryStatistics({ data }: { data: DataRow[] }) {
       </div>
     </div>
   );
+
+  // If no data, return all zeros
+  if (!data.length) {
+    const emptyStats = {
+      self: 0,
+      us: 0,
+      now: 0,
+      challenge: 0,
+      choice: 0,
+      outcome: 0,
+      noStoryType: 0,
+      noNarrativeElement: 0
+    };
+    return (
+      <div className="statistics-container">
+        <div className="stats-section">
+          <h3>Story Types</h3>
+          <div className="stats-grid">
+            <StatBar label="Story of Self" value={0} color="#8b00ff" />
+            <StatBar label="Story of Us" value={0} color="#0066cc" />
+            <StatBar label="Story of Now" value={0} color="#ffd700" />
+            <StatBar label="No Story Type" value={0} />
+          </div>
+        </div>
+        <div className="stats-section">
+          <h3>Narrative Elements</h3>
+          <div className="stats-grid">
+            <StatBar label="Challenge" value={0} />
+            <StatBar label="Choice" value={0} />
+            <StatBar label="Outcome" value={0} />
+            <StatBar label="No Elements" value={0} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate total words
+  const totalWords = data.reduce((sum, row) => sum + (row.text ? row.text.trim().split(/\s+/).length : 0), 0);
+
+  // Calculate percentages based on word count
+  const stats = {
+    self: data.reduce((sum, row) => sum + (row.storyOfSelf ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    us: data.reduce((sum, row) => sum + (row.storyOfUs ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    now: data.reduce((sum, row) => sum + (row.storyOfNow ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    challenge: data.reduce((sum, row) => sum + (row.challenge ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    choice: data.reduce((sum, row) => sum + (row.choice ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    outcome: data.reduce((sum, row) => sum + (row.outcome ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    noStoryType: data.reduce((sum, row) => sum + (!row.storyOfSelf && !row.storyOfUs && !row.storyOfNow ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100,
+    noNarrativeElement: data.reduce((sum, row) => sum + (!row.challenge && !row.choice && !row.outcome ? (row.text ? row.text.trim().split(/\s+/).length : 0) : 0), 0) / totalWords * 100
+  };
 
   return (
     <div className="statistics-container">
@@ -702,6 +779,22 @@ function App(): React.ReactElement {
         fetch(story.humanFile)
           .then(response => {
             if (!response.ok) {
+              throw new Error(`Failed to load ${story.file}: ${response.statusText}`);
+            }
+            return response.text();
+          })
+          .then(csvText => {
+            const results = Papa.parse(csvText, {
+              header: true,
+              skipEmptyLines: true
+            });
+            
+            return processData(results.data as any[], false);
+          }),
+        // Load human annotations
+        fetch(story.humanFile)
+          .then(response => {
+            if (!response.ok) {
               throw new Error(`Failed to load ${story.humanFile}: ${response.statusText}`);
             }
             return response.text();
@@ -739,7 +832,7 @@ function App(): React.ReactElement {
   }, []);
 
   // Process data function
-  const processData = (rawData: any[], isHuman: boolean) => {
+  const processData = (rawData: RawDataRow[], isHuman: boolean): DataRow[] => {
     console.log('Processing data:', {
       isHuman,
       rawDataLength: rawData.length,
@@ -749,7 +842,7 @@ function App(): React.ReactElement {
     const processedData = rawData
       .map((row, index) => {
         // Helper function to convert annotation values
-        const convertAnnotation = (value: any): string => {
+        const convertAnnotation = (value: string | number | undefined | null): string => {
           if (value === undefined || value === null || value === '') return '';
           // Convert numeric 1 to string "1" and numeric 0 to empty string
           if (typeof value === 'number') return value === 1 ? "1" : "";
@@ -862,7 +955,7 @@ function App(): React.ReactElement {
   const tableRef = React.useRef<HTMLDivElement>(null);
 
   // Helper function to find block for a line number
-  const findBlockForLine = (lineNumber: number, processedData: any[]): [number, number] | null => {
+  const findBlockForLine = (lineNumber: number, processedData: TableBlockItem[]): [number, number] | null => {
     for (const block of processedData) {
       if (lineNumber >= block.startIndex && lineNumber <= block.endIndex) {
         return [block.startIndex, block.endIndex];
@@ -891,7 +984,7 @@ function App(): React.ReactElement {
         choice: Boolean(row.choice === "1" || row.choice === "2" || String(row.choice) === "1"),
         outcome: Boolean(row.outcome === "1" || row.outcome === "2" || String(row.outcome) === "1"),
       }))
-      .reduce((acc: any[], current) => {
+      .reduce((acc: TableBlockItem[], current) => {
         if (acc.length === 0) return [current];
         
         const previous = acc[acc.length - 1];
@@ -953,6 +1046,7 @@ function App(): React.ReactElement {
         <select
           value={selectedStory}
           onChange={(e) => handleStoryChange(e.target.value)}
+          className={!selectedStory ? 'empty-selection' : ''}
         >
           <option value="">Select a story</option>
           {Object.keys(allStories).map(storyName => (
@@ -1052,6 +1146,18 @@ function App(): React.ReactElement {
       <div className="visualizations-container">
         <Legend />
         <div className="visualization-section">
+          <h3>Human Annotations</h3>
+          <StoryDistributionGraph 
+            data={humanData} 
+            filters={filters} 
+            hoveredLine={hoveredLine}
+            setHoveredLine={setHoveredLine}
+            setHoverSource={setHoverSource}
+            isHuman={true}
+          />
+        </div>
+        
+        <div className="visualization-section">
           <h3>Model Annotations</h3>
           <StoryDistributionGraph 
             data={data} 
@@ -1063,16 +1169,230 @@ function App(): React.ReactElement {
           />
         </div>
         
-        <div className="visualization-section">
-          <h3>Human Annotations</h3>
-          <StoryDistributionGraph 
-            data={humanData} 
-            filters={filters} 
-            hoveredLine={hoveredLine}
-            setHoveredLine={setHoveredLine}
-            setHoverSource={setHoverSource}
-            isHuman={true}
-          />
+        <div className="export-graph-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
+          <button 
+            className="export-button"
+            onClick={() => {
+              // Get the visualization container
+              const visualizationContainer = document.querySelector('.visualizations-container');
+              if (!visualizationContainer) return;
+
+              // Use html2canvas to capture the visualization
+              html2canvas(visualizationContainer as HTMLElement, {
+                backgroundColor: 'white',
+                scale: 2, // Higher scale for better quality
+                logging: false,
+                onclone: (documentClone) => {
+                  // Prepare cloned element for optimal capture
+                  const clonedViz = documentClone.querySelector('.visualizations-container') as HTMLElement;
+                  if (clonedViz) {
+                    // Clear existing content but keep the Legend
+                    const legend = clonedViz.querySelector('.legend-container');
+                    const graphContainers = clonedViz.querySelectorAll('.visualization-section');
+                    
+                    if (legend && graphContainers.length >= 2) {
+                      // Create a new container to hold our custom layout
+                      const newContainer = document.createElement('div');
+                      newContainer.style.backgroundColor = 'white';
+                      newContainer.style.padding = '20px';
+                      newContainer.style.display = 'flex';
+                      newContainer.style.flexDirection = 'column';
+                      newContainer.style.alignItems = 'center';
+                      newContainer.style.width = '100%';
+                      newContainer.style.maxWidth = '3600px'; // 3x wider than 1200px
+                      
+                      // Add title
+                      const title = document.createElement('h2');
+                      title.textContent = `${selectedStory || 'Transcript'} - Annotation Patterns`;
+                      title.style.textAlign = 'center';
+                      title.style.margin = '0 0 20px 0';
+                      title.style.fontSize = '24px';
+                      
+                      // Create centered legend container with horizontal layout
+                      const legendContainer = document.createElement('div');
+                      legendContainer.style.display = 'flex';
+                      legendContainer.style.justifyContent = 'center';
+                      legendContainer.style.marginBottom = '30px';
+                      legendContainer.style.width = '100%';
+                      
+                      // Clone and add the legend
+                      const legendClone = legend.cloneNode(true) as HTMLElement;
+                      
+                      // Modify the legend to make all items horizontal
+                      const legendSections = legendClone.querySelectorAll('.legend-section');
+                      legendSections.forEach(section => {
+                        const sectionEl = section as HTMLElement;
+                        sectionEl.style.display = 'flex';
+                        sectionEl.style.flexDirection = 'row';
+                        sectionEl.style.alignItems = 'center';
+                        
+                        // Find the title and make it inline
+                        const titleDiv = sectionEl.querySelector('div > div:first-child');
+                        if (titleDiv) {
+                          const titleEl = titleDiv as HTMLElement;
+                          titleEl.style.marginRight = '15px';
+                          titleEl.style.marginBottom = '0';
+                          titleEl.style.fontSize = '14px';
+                          titleEl.style.fontWeight = 'bold';
+                          titleEl.style.whiteSpace = 'nowrap';
+                        }
+                        
+                        // Make all legend items horizontal
+                        const legendItems = sectionEl.querySelectorAll('.legend-item');
+                        legendItems.forEach(item => {
+                          const itemEl = item as HTMLElement;
+                          itemEl.style.marginLeft = '10px';
+                          itemEl.style.marginRight = '10px';
+                          itemEl.style.display = 'inline-flex';
+                        });
+                      });
+                      
+                      // Remove the divider and make the whole legend horizontal
+                      const divider = legendClone.querySelector('.legend-divider');
+                      if (divider) {
+                        divider.remove();
+                      }
+                      
+                      legendClone.style.display = 'flex';
+                      legendClone.style.flexDirection = 'row';
+                      legendClone.style.justifyContent = 'center';
+                      legendClone.style.alignItems = 'center';
+                      legendClone.style.flexWrap = 'wrap';
+                      
+                      legendContainer.appendChild(legendClone);
+                      
+                      // Get the graph SVGs
+                      const humanGraph = graphContainers[0].querySelector('.graph-svg-container svg');
+                      const modelGraph = graphContainers[1].querySelector('.graph-svg-container svg');
+                      
+                      if (humanGraph && modelGraph) {
+                        // Create container for human annotations
+                        const humanContainer = document.createElement('div');
+                        humanContainer.style.marginBottom = '40px';
+                        humanContainer.style.width = '100%';
+                        humanContainer.style.maxWidth = '3300px'; // 3x wider than 1100px
+                        humanContainer.style.position = 'relative';
+                        humanContainer.style.margin = '0 auto 40px auto'; // Center horizontally
+                        
+                        // Add label above the human graph
+                        const humanLabel = document.createElement('div');
+                        humanLabel.textContent = 'Human Annotations';
+                        humanLabel.style.fontWeight = 'bold';
+                        humanLabel.style.marginBottom = '5px';
+                        humanLabel.style.fontSize = '18px';
+                        humanLabel.style.position = 'absolute';
+                        humanLabel.style.top = '-30px';
+                        humanLabel.style.left = '0';
+                        humanLabel.style.width = '100%';
+                        humanLabel.style.textAlign = 'center';
+                        
+                        // Clone and add the human graph
+                        humanContainer.appendChild(humanLabel);
+                        const clonedHumanGraph = humanGraph.cloneNode(true) as HTMLElement;
+                        clonedHumanGraph.style.width = '100%'; // Ensure graph takes full width of container
+                        clonedHumanGraph.style.margin = '0 auto'; // Center the graph
+                        
+                        // Ensure SVG viewBox is set correctly to show full width and increase height
+                        if (clonedHumanGraph instanceof SVGElement) {
+                          const width = parseInt(clonedHumanGraph.getAttribute('width') || '0', 10);
+                          const height = parseInt(clonedHumanGraph.getAttribute('height') || '0', 10);
+                          if (width && height) {
+                            // Make 3x wider and 5x taller
+                            const newWidth = width * 3;
+                            const newHeight = height * 5;
+                            clonedHumanGraph.setAttribute('viewBox', `0 0 ${width} ${height}`);
+                            clonedHumanGraph.setAttribute('width', newWidth.toString());
+                            clonedHumanGraph.setAttribute('height', newHeight.toString());
+                            clonedHumanGraph.style.width = '100%';
+                            clonedHumanGraph.style.height = `${newHeight}px`;
+                          }
+                        }
+                        
+                        humanContainer.appendChild(clonedHumanGraph);
+                        
+                        // Create container for model annotations
+                        const modelContainer = document.createElement('div');
+                        modelContainer.style.width = '100%';
+                        modelContainer.style.maxWidth = '3300px'; // 3x wider than 1100px
+                        modelContainer.style.position = 'relative';
+                        modelContainer.style.margin = '0 auto'; // Center horizontally
+                        
+                        // Add label above the model graph
+                        const modelLabel = document.createElement('div');
+                        modelLabel.textContent = 'Model Annotations';
+                        modelLabel.style.fontWeight = 'bold';
+                        modelLabel.style.marginBottom = '5px';
+                        modelLabel.style.fontSize = '18px';
+                        modelLabel.style.position = 'absolute';
+                        modelLabel.style.top = '-30px';
+                        modelLabel.style.left = '0';
+                        modelLabel.style.width = '100%';
+                        modelLabel.style.textAlign = 'center';
+
+                        // Clone and add the model graph
+                        modelContainer.appendChild(modelLabel);
+                        const clonedModelGraph = modelGraph.cloneNode(true) as HTMLElement;
+                        clonedModelGraph.style.width = '100%'; // Ensure graph takes full width of container
+                        clonedModelGraph.style.margin = '0 auto'; // Center the graph
+                        
+                        // Ensure SVG viewBox is set correctly to show full width and increase height
+                        if (clonedModelGraph instanceof SVGElement) {
+                          const width = parseInt(clonedModelGraph.getAttribute('width') || '0', 10);
+                          const height = parseInt(clonedModelGraph.getAttribute('height') || '0', 10);
+                          if (width && height) {
+                            // Make 3x wider and 5x taller
+                            const newWidth = width * 3;
+                            const newHeight = height * 5;
+                            clonedModelGraph.setAttribute('viewBox', `0 0 ${width} ${height}`);
+                            clonedModelGraph.setAttribute('width', newWidth.toString());
+                            clonedModelGraph.setAttribute('height', newHeight.toString());
+                            clonedModelGraph.style.width = '100%';
+                            clonedModelGraph.style.height = `${newHeight}px`;
+                          }
+                        }
+                        
+                        modelContainer.appendChild(clonedModelGraph);
+                        
+                        // Add all elements to the new container
+                        newContainer.appendChild(title);
+                        newContainer.appendChild(legendContainer);
+                        newContainer.appendChild(humanContainer);
+                        newContainer.appendChild(modelContainer);
+                        
+                        // Replace the original content with our custom layout
+                        clonedViz.innerHTML = '';
+                        clonedViz.appendChild(newContainer);
+                      }
+                    } else {
+                      // Fallback if we can't find the elements we need
+                      clonedViz.style.padding = '20px';
+                      clonedViz.style.backgroundColor = 'white';
+                      
+                      // Add a title
+                      const titleEl = document.createElement('h2');
+                      titleEl.textContent = `${selectedStory || 'Transcript'} - Annotation Patterns`;
+                      titleEl.style.textAlign = 'center';
+                      titleEl.style.margin = '0 0 20px 0';
+                      clonedViz.insertBefore(titleEl, clonedViz.firstChild);
+                    }
+                  }
+                  return documentClone;
+                }
+              }).then(canvas => {
+                // Convert canvas to PNG and download
+                const imgData = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `${selectedStory || 'transcript'}_graph.png`;
+                link.href = imgData;
+                link.click();
+              }).catch(err => {
+                console.error('Error exporting graph visualization:', err);
+                alert('There was an error exporting the graph visualization. Please try again.');
+              });
+            }}
+          >
+            Export Graphs as PNG
+          </button>
         </div>
       </div>
 
@@ -1128,8 +1448,582 @@ function App(): React.ReactElement {
           </table>
         </div>
       </div>
+
+      {/* New Highlighted Transcript Component */}
+      <div className="highlighted-transcript-container">
+        <div className="transcript-header">
+          <h2>Transcript Comparison</h2>
+          <button 
+            className="export-button"
+            onClick={() => {
+              // Get the transcript container for export
+              const transcriptContainer = document.querySelector('.transcript-with-minimap');
+              if (!transcriptContainer) return;
+
+              // Create a clone of the container for customization
+              const clone = transcriptContainer.cloneNode(true) as HTMLElement;
+              
+              // Create a wrapper to hold everything
+              const wrapper = document.createElement('div');
+              wrapper.style.backgroundColor = 'white';
+              wrapper.style.padding = '40px';
+              wrapper.style.width = '90%'; // Set to 90% of previous width
+              wrapper.style.maxWidth = '1080px'; // Reduced from 1200px (if that was the implicit width)
+              wrapper.style.margin = '0 auto';
+              wrapper.style.position = 'absolute';
+              wrapper.style.left = '-9999px';
+              
+              // Add title
+              const title = document.createElement('h2');
+              title.textContent = `${selectedStory || 'Transcript'} - Annotation Comparison`;
+              title.style.textAlign = 'center';
+              title.style.margin = '0 0 30px 0';
+              title.style.fontSize = '28px';
+              wrapper.appendChild(title);
+              
+              // Add column headers
+              const headerContainer = document.createElement('div');
+              headerContainer.style.display = 'flex';
+              headerContainer.style.justifyContent = 'space-between';
+              headerContainer.style.margin = '0 0 20px 40px';
+              headerContainer.style.width = 'calc(100% - 80px)';
+              
+              const modelHeader = document.createElement('h3');
+              modelHeader.textContent = 'Model Annotations';
+              modelHeader.style.flex = '1';
+              modelHeader.style.textAlign = 'center';
+              modelHeader.style.margin = '0';
+              modelHeader.style.fontSize = '24px';
+              modelHeader.style.fontWeight = 'bold';
+              
+              const humanHeader = document.createElement('h3');
+              humanHeader.textContent = 'Human Annotations';
+              humanHeader.style.flex = '1';
+              humanHeader.style.textAlign = 'center';
+              humanHeader.style.margin = '0';
+              humanHeader.style.fontSize = '24px';
+              humanHeader.style.fontWeight = 'bold';
+              
+              headerContainer.appendChild(modelHeader);
+              headerContainer.appendChild(humanHeader);
+              wrapper.appendChild(headerContainer);
+              
+              // Process all text blocks to limit to 2 lines with ellipses and increase font size
+              const textBlocks = clone.querySelectorAll('.text-block');
+              
+              // Modify the transcript container to be narrower
+              clone.style.width = '90%';
+              clone.style.margin = '0 auto';
+              
+              // Process the first 40 lines
+              textBlocks.forEach((block, index) => {
+                // Remove blocks beyond line 40
+                if (index >= 40) {
+                  block.remove();
+                  return;
+                }
+                
+                const blockEl = block as HTMLElement;
+                
+                // Set fixed dimensions to ensure exactly 2 lines are shown
+                blockEl.style.maxHeight = '3.5em';
+                blockEl.style.height = '3.5em';
+                blockEl.style.overflow = 'hidden';
+                blockEl.style.fontSize = '18px';
+                blockEl.style.lineHeight = '1.4'; 
+                blockEl.style.padding = '8px 12px';
+                blockEl.style.boxSizing = 'border-box';
+                blockEl.style.width = '90%'; // Reduce width to 90%
+                blockEl.style.margin = '0 auto'; // Center the block
+                
+                // Special handling for line 39 - combine with lines 40-41
+                if (index === 38) {
+                  const line39 = blockEl.textContent || '';
+                  const line40 = (textBlocks[39] as HTMLElement)?.textContent || '';
+                  const line41 = (textBlocks[40] as HTMLElement)?.textContent || '';
+                  
+                  // Combine the text and truncate if over 87 characters
+                  const combinedText = line39 + ' ' + line40 + ' ' + line41;
+                  if (combinedText.length > 87) {
+                    blockEl.textContent = combinedText.substring(0, 87) + '...';
+                  } else {
+                    blockEl.textContent = combinedText;
+                  }
+                } else if (index === 39 || index === 40) {
+                  // Remove lines 40-41 as they are included in line 39
+                  blockEl.remove();
+                } else {
+                  // For all other lines, add ellipses only if text is over 87 characters
+                  const text = blockEl.textContent || '';
+                  if (text.length > 87) {
+                    blockEl.textContent = text.substring(0, 87) + '...';
+                  }
+                }
+              });
+              
+              // Add the modified transcript container
+              wrapper.appendChild(clone);
+              
+              // Add legend/key with horizontal layout at the bottom
+              const legend = document.querySelector('.legend-container');
+              if (legend) {
+                const legendClone = legend.cloneNode(true) as HTMLElement;
+                legendClone.style.margin = '40px auto 0 auto';
+                legendClone.style.maxWidth = '90%';
+                
+                // Modify the legend to make all items horizontal
+                const legendSections = legendClone.querySelectorAll('.legend-section');
+                legendSections.forEach(section => {
+                  const sectionEl = section as HTMLElement;
+                  sectionEl.style.display = 'flex';
+                  sectionEl.style.flexDirection = 'row';
+                  sectionEl.style.alignItems = 'center';
+                  
+                  // Find the title and make it inline
+                  const titleDiv = sectionEl.querySelector('div > div:first-child');
+                  if (titleDiv) {
+                    const titleEl = titleDiv as HTMLElement;
+                    titleEl.style.marginRight = '15px';
+                    titleEl.style.marginBottom = '0';
+                    titleEl.style.fontSize = '16px';
+                    titleEl.style.fontWeight = 'bold';
+                    titleEl.style.whiteSpace = 'nowrap';
+                  }
+                  
+                  // Make all legend items horizontal
+                  const legendItems = sectionEl.querySelectorAll('.legend-item');
+                  legendItems.forEach(item => {
+                    const itemEl = item as HTMLElement;
+                    itemEl.style.marginLeft = '10px';
+                    itemEl.style.marginRight = '10px';
+                    itemEl.style.display = 'inline-flex';
+                    itemEl.style.fontSize = '16px';
+                  });
+                });
+                
+                // Remove the divider and make the whole legend horizontal
+                const divider = legendClone.querySelector('.legend-divider');
+                if (divider) {
+                  divider.remove();
+                }
+                
+                legendClone.style.display = 'flex';
+                legendClone.style.flexDirection = 'row';
+                legendClone.style.justifyContent = 'center';
+                legendClone.style.alignItems = 'center';
+                legendClone.style.flexWrap = 'wrap';
+                
+                wrapper.appendChild(legendClone);
+              }
+              
+              // Add to document temporarily
+              document.body.appendChild(wrapper);
+              
+              // Use html2canvas on our prepared wrapper
+              html2canvas(wrapper, {
+                backgroundColor: 'white',
+                scale: 2, // Higher scale for better quality
+                logging: false,
+                width: wrapper.offsetWidth,
+                height: wrapper.offsetHeight
+              }).then(canvas => {
+                // Convert canvas to PNG and download
+                const imgData = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `${selectedStory || 'transcript'}_visualization.png`;
+                link.href = imgData;
+                link.click();
+                
+                // Clean up
+                document.body.removeChild(wrapper);
+              }).catch(err => {
+                console.error('Error exporting visualization:', err);
+                alert('There was an error exporting the visualization. Please try again.');
+                document.body.removeChild(wrapper);
+              });
+            }}
+          >
+            Export Visualization as PNG
+          </button>
+        </div>
+        <div className="transcript-comparison-header">
+          <div className="transcript-column">
+            <h3>Model Annotations</h3>
+          </div>
+          <div className="transcript-column">
+            <h3>Human Annotations</h3>
+          </div>
+        </div>
+        <SideBySideTranscript modelData={data} humanData={humanData} />
+      </div>
     </div>
   );
 }
+
+interface SideBySideTranscriptProps {
+  modelData: DataRow[];
+  humanData: DataRow[];
+}
+
+// Interface for annotations extracted from DataRow
+interface Annotation {
+  self: string;
+  us: string;
+  now: string;
+  challenge: string;
+  choice: string;
+  outcome: string;
+}
+
+// Interface for transcript blocks
+interface TranscriptBlock {
+  lineStart: number;
+  lineEnd: number;
+  text: string[];
+  modelTags: string[];
+  humanTags: string[];
+}
+
+// Interface for block position measurement
+interface BlockRect {
+  id: number;
+  top: number;
+  height: number;
+}
+
+const SideBySideTranscript = ({ modelData, humanData }: SideBySideTranscriptProps) => {
+  // Add a ref for the transcript container to handle scrolling
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 0 });
+  const [blockRects, setBlockRects] = useState<BlockRect[]>([]);
+  
+  // Extract transcript lines from model data
+  const transcript = modelData.map(row => row.text);
+  
+  // Transform model and human data into annotation objects
+  const modelAnnotations = modelData.map(row => ({
+    self: row.storyOfSelf,
+    us: row.storyOfUs,
+    now: row.storyOfNow,
+    challenge: row.challenge,
+    choice: row.choice,
+    outcome: row.outcome
+  }));
+  
+  const humanAnnotations = humanData.map(row => ({
+    self: row.storyOfSelf,
+    us: row.storyOfUs,
+    now: row.storyOfNow,
+    challenge: row.challenge,
+    choice: row.choice,
+    outcome: row.outcome
+  }));
+  
+  // Helper function to get tags from annotation
+  const getTagsFromAnnotation = (annotation: Annotation): string[] => {
+    if (!annotation) return [];
+    
+    const tags: string[] = [];
+    if (isPositiveValue(annotation.self)) tags.push("Self");
+    if (isPositiveValue(annotation.us)) tags.push("Us");
+    if (isPositiveValue(annotation.now)) tags.push("Now");
+    if (isPositiveValue(annotation.challenge)) tags.push("Challenge");
+    if (isPositiveValue(annotation.choice)) tags.push("Choice");
+    if (isPositiveValue(annotation.outcome)) tags.push("Outcome");
+    
+    return tags;
+  };
+  
+  // Helper to check if a value is positive (1 or 2)
+  const isPositiveValue = (value: string | number | undefined): boolean => {
+    if (typeof value === 'number') return value === 1;
+    if (typeof value === 'string') return value === "1" || value === "2";
+    return false;
+  };
+  
+  // Create a unique key from tags to detect changes
+  const getUniqueAnnotationKey = (tags: string[]): string => {
+    return tags.sort().join(',');
+  };
+  
+  // Find aligned tags between model and human annotations
+  const findAlignedTags = (modelTags: string[], humanTags: string[]): string[] => {
+    return modelTags.filter(tag => humanTags.includes(tag));
+  };
+  
+  // Create blocks based on annotation differences
+  const createBlocks = (
+    transcript: string[],
+    modelAnnotations: Annotation[],
+    humanAnnotations: Annotation[]
+  ): TranscriptBlock[] => {
+    if (!transcript || !modelAnnotations || !humanAnnotations || 
+        transcript.length === 0 || modelAnnotations.length === 0 || humanAnnotations.length === 0) {
+      return [];
+    }
+
+    // Ensure all arrays have the same length by using the shortest
+    const minLength = Math.min(transcript.length, modelAnnotations.length, humanAnnotations.length);
+    
+    const blocks: TranscriptBlock[] = [];
+    let currentBlock: TranscriptBlock = {
+      lineStart: 0,
+      lineEnd: 0,
+      text: [],
+      modelTags: [],
+      humanTags: []
+    };
+
+    let prevModelKey = "";
+    let prevHumanKey = "";
+
+    for (let index = 0; index < minLength; index++) {
+      const line = transcript[index];
+      const modelAnnotation = modelAnnotations[index];
+      const humanAnnotation = humanAnnotations[index];
+      
+      const modelTags = getTagsFromAnnotation(modelAnnotation);
+      const humanTags = getTagsFromAnnotation(humanAnnotation);
+      const modelKey = getUniqueAnnotationKey(modelTags);
+      const humanKey = getUniqueAnnotationKey(humanTags);
+
+      // Start a new block if this is the first line or if any annotation has changed
+      if (index === 0 || modelKey !== prevModelKey || humanKey !== prevHumanKey) {
+        // Save the previous block if it's not the first line
+        if (index > 0) {
+          blocks.push({...currentBlock});
+        }
+
+        // Start a new block
+        currentBlock = {
+          lineStart: index,
+          lineEnd: index,
+          text: [line],
+          modelTags,
+          humanTags
+        };
+      } else {
+        // Continue the current block
+        currentBlock.lineEnd = index;
+        currentBlock.text.push(line);
+      }
+
+      prevModelKey = modelKey;
+      prevHumanKey = humanKey;
+    }
+
+    // Add the last block
+    if (minLength > 0) {
+      blocks.push({...currentBlock});
+    }
+
+    return blocks;
+  };
+
+  const getComputedColorForTag = (tags: string[]): string => {
+    // Check for story type tags in order of priority: now > us > self
+    if (tags.includes("Now")) return "#ffd700";  // Yellow
+    if (tags.includes("Us")) return "#0066cc";   // Blue
+    if (tags.includes("Self")) return "#8b00ff"; // Purple
+    
+    // If no story type tags are present, check for narrative elements
+    if (tags.includes("Challenge")) return "#76b7b2"; // Keep the existing IDs for Challenge
+    if (tags.includes("Choice")) return "#59a14f"; // Keep the existing IDs for Choice
+    if (tags.includes("Outcome")) return "#af7aa1"; // Keep the existing IDs for Outcome
+    
+    return "#cccccc"; // Default gray
+  };
+
+  const blocks = createBlocks(transcript, modelAnnotations, humanAnnotations);
+  
+  // Process blocks to show original model and human tags separately
+  const processedBlocks = blocks.map(block => {
+    return {
+      ...block,
+      // Keep original model and human tags without alignment filtering
+      modelTags: block.modelTags,
+      humanTags: block.humanTags
+    };
+  });
+
+  useEffect(() => {
+    const updateBlockPositions = () => {
+      if (!transcriptRef.current) return;
+      
+      const blockElements = transcriptRef.current.querySelectorAll('.transcript-row');
+      const newRects: BlockRect[] = [];
+      
+      blockElements.forEach((el, index) => {
+        const rect = el.getBoundingClientRect();
+        const parentRect = transcriptRef.current!.getBoundingClientRect();
+        const relativeTop = rect.top - parentRect.top + transcriptRef.current!.scrollTop;
+        
+        newRects.push({
+          id: index,
+          top: relativeTop,
+          height: rect.height
+        });
+      });
+      
+      setBlockRects(newRects);
+    };
+    
+    // Update positions after a short delay to ensure all elements are rendered
+    const timeout = setTimeout(updateBlockPositions, 100);
+    
+    return () => clearTimeout(timeout);
+  }, [blocks]);
+  
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!transcriptRef.current) return;
+      
+      const { scrollTop, clientHeight, scrollHeight } = transcriptRef.current;
+      const start = scrollTop / scrollHeight;
+      const end = (scrollTop + clientHeight) / scrollHeight;
+      
+      setVisibleRange({ start, end });
+    };
+    
+    const transcriptElement = transcriptRef.current;
+    if (transcriptElement) {
+      transcriptElement.addEventListener('scroll', handleScroll);
+      handleScroll(); // Initial call
+    }
+    
+    return () => {
+      if (transcriptElement) {
+        transcriptElement.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
+  
+  const scrollToBlock = (index: number) => {
+    if (!transcriptRef.current || blockRects.length === 0) return;
+    
+    const block = blockRects[index];
+    if (block) {
+      transcriptRef.current.scrollTop = block.top;
+    }
+  };
+
+  // Helper function to determine CSS classes based on tags
+  const getBlockClasses = (tags: string[]): string => {
+    const classes: string[] = [];
+    
+    // Add story type classes
+    if (tags.includes("Self")) classes.push("text-block-self");
+    if (tags.includes("Us")) classes.push("text-block-us");
+    if (tags.includes("Now")) classes.push("text-block-now");
+    
+    // Add narrative element classes
+    if (tags.includes("Challenge")) classes.push("text-block-challenge");
+    if (tags.includes("Choice")) classes.push("text-block-choice");
+    if (tags.includes("Outcome")) classes.push("text-block-outcome");
+    
+    return classes.join(" ");
+  };
+
+  if (!transcript || transcript.length === 0) {
+    return (
+      <div className="highlighted-transcript-empty">No transcript data available</div>
+    );
+  }
+
+  return (
+    <div className="transcript-with-minimap">
+      <div className="transcript-minimap">
+        {processedBlocks.map((block, index) => {
+          const blockHeight = (block.lineEnd - block.lineStart + 1) / transcript.length * 100;
+          const blockTop = block.lineStart / transcript.length * 100;
+          const modelColor = getComputedColorForTag(block.modelTags);
+          const humanColor = getComputedColorForTag(block.humanTags);
+          const isVisible = 
+            (blockTop / 100 >= visibleRange.start && blockTop / 100 <= visibleRange.end) || 
+            ((blockTop + blockHeight) / 100 >= visibleRange.start && (blockTop + blockHeight) / 100 <= visibleRange.end);
+          
+          return (
+            <React.Fragment key={`minimap-${index}`}>
+              <div 
+                className={`minimap-block ${isVisible ? 'visible' : ''}`}
+                style={{
+                  height: `${blockHeight}%`,
+                  top: `${blockTop}%`,
+                  backgroundColor: modelColor,
+                  opacity: 0.7
+                }}
+                onClick={() => scrollToBlock(index)}
+                title={`${block.modelTags.join(', ')}`}
+              />
+              <div 
+                className="minimap-block minimap-block-right"
+                style={{
+                  height: `${blockHeight}%`,
+                  top: `${blockTop}%`,
+                  backgroundColor: humanColor,
+                  opacity: 0.7
+                }}
+                onClick={() => scrollToBlock(index)}
+                title={`${block.humanTags.join(', ')}`}
+              />
+            </React.Fragment>
+          );
+        })}
+        
+        <div 
+          className="minimap-viewport"
+          style={{
+            top: `${visibleRange.start * 100}%`,
+            height: `${(visibleRange.end - visibleRange.start) * 100}%`
+          }}
+        />
+      </div>
+      
+      <div className="side-by-side-transcript" ref={transcriptRef}>
+        {processedBlocks.map((block, blockIndex) => (
+          <div className="transcript-row" key={`block-${blockIndex}`}>
+            <div className="line-number">
+              {block.lineStart + 1}
+            </div>
+            <div className="transcript-content">
+              <div className="transcript-column">
+                <div 
+                  className={`text-block ${getBlockClasses(block.modelTags)}`}
+                  style={{ 
+                    backgroundColor: getComputedColorForTag(block.modelTags),
+                    color: getComputedColorForTag(block.modelTags) === "#ffd700" ? 'black' : 'white',
+                    padding: '6px 10px',
+                    fontSize: '15px',
+                    lineHeight: '1.4',
+                    textRendering: 'optimizeLegibility',
+                    fontWeight: '500'
+                  }}
+                >
+                  {block.text.join(' ')}
+                </div>
+              </div>
+              <div className="transcript-column">
+                <div 
+                  className={`text-block ${getBlockClasses(block.humanTags)}`}
+                  style={{ 
+                    backgroundColor: getComputedColorForTag(block.humanTags),
+                    color: getComputedColorForTag(block.humanTags) === "#ffd700" ? 'black' : 'white',
+                    padding: '6px 10px',
+                    fontSize: '15px',
+                    lineHeight: '1.4',
+                    textRendering: 'optimizeLegibility',
+                    fontWeight: '500'
+                  }}
+                >
+                  {block.text.join(' ')}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default App; 

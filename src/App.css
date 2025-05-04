@@ -155,7 +155,7 @@ tr.highlighted td.has-value {
   margin: 0;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   background-color: white;
-  height: calc(100vh - 700px);
+  height: 300px;
   min-height: 200px;
   display: flex;
   flex-direction: column;
@@ -481,4 +481,470 @@ th[class*="sticky-col"] {
   margin: 0 0 15px 0;
   font-size: 16px;
   color: #333;
+}
+
+/* Updated Highlighted Transcript Container */
+.highlighted-transcript-container {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f8f8f8;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: calc(100vh - 80px); /* Make it almost full height, leaving some margin */
+}
+
+.highlighted-transcript-container h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.4rem;
+  color: #333;
+  text-align: center;
+}
+
+.transcript-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.export-button {
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.export-button:hover {
+  background-color: #0055aa;
+}
+
+.export-button:active {
+  background-color: #004488;
+}
+
+.transcript-comparison-header {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.transcript-comparison-header h3 {
+  font-size: 1rem;
+  color: #555;
+  margin: 0;
+  text-align: center;
+}
+
+/* Transcript with Minimap Container */
+.transcript-with-minimap {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  height: calc(100% - 60px); /* Adjust height to fill the container, leaving space for headers */
+}
+
+/* Transcript Minimap Styles */
+.transcript-minimap {
+  width: 30px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  position: relative;
+  height: 100%;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.minimap-block {
+  position: absolute;
+  width: 15px;
+  left: 0;
+  cursor: pointer;
+  background-color: #f8f8f8;
+  transition: all 0.2s ease;
+  border-radius: 0 2px 2px 0;
+}
+
+.minimap-block:hover {
+  width: 28px;
+  background-color: #e0e0e0;
+}
+
+.minimap-block.visible {
+  background-color: #e8e8e8;
+}
+
+.minimap-block-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 15px;
+}
+
+.minimap-viewport {
+  position: absolute;
+  right: 0;
+  width: 6px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Side by Side Transcript Styles */
+.side-by-side-transcript {
+  width: calc(100% - 38px);
+  overflow-y: auto;
+  height: 100%;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #ccc #f0f0f0;
+}
+
+.side-by-side-transcript::-webkit-scrollbar {
+  width: 8px;
+}
+
+.side-by-side-transcript::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.side-by-side-transcript::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 4px;
+}
+
+.transcript-row {
+  display: flex;
+  margin-bottom: 8px;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.line-number {
+  min-width: 30px;
+  text-align: right;
+  color: #999;
+  font-size: 0.8rem;
+  padding-top: 6px;
+  flex-shrink: 0;
+}
+
+.transcript-content {
+  display: flex;
+  flex-grow: 1;
+  gap: 10px;
+}
+
+.transcript-column {
+  flex: 1;
+  max-width: 50%;
+}
+
+.text-block {
+  position: relative;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin: 0;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 15px;
+  line-height: 1.4;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.text-block:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.text-block-content {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  position: relative;
+  z-index: 2;
+  /* Text color is determined by narrative element styles */
+}
+
+/* Make white text more readable with text shadow */
+.text-block[style*="color: white"] .text-block-content {
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+.tag-indicator {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tag {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: bold;
+  display: inline-block;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Make sure tag styles override any conflicting styles */
+.tag-self {
+  background-color: #8b00ff !important;
+  color: white !important;
+}
+
+.tag-us {
+  background-color: #0066cc !important;
+  color: white !important;
+}
+
+.tag-now {
+  background-color: #ffd700 !important;
+  color: black !important;
+}
+
+.tag-challenge {
+  background-color: white !important;
+  border: 1px solid #666 !important;
+  color: #666 !important;
+}
+
+.tag-choice {
+  background-color: rgba(102, 102, 102, 0.5) !important;
+  color: black !important;
+}
+
+.tag-outcome {
+  background-color: #666 !important;
+  color: white !important;
+}
+
+.highlighted-transcript-empty {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+/* Add styles for Choice tag */
+.text-block.choice-style {
+  border-left-width: 6px !important;
+  border-left-style: solid !important;
+}
+
+/* Improve spacing in the text blocks */
+.text-block {
+  position: relative;
+  padding: 15px 20px;
+  border-radius: 6px;
+  margin: 0;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure tags are readable */
+.tag {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: bold;
+  display: inline-block;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Adjust colors and patterns for narrative elements based on story types */
+.text-block[style*="background-color: #4e79a7"] {
+  /* Self - Purple background */
+  background-color: rgba(139, 0, 255, 0.7) !important;
+}
+
+.text-block[style*="background-color: #f28e2c"] {
+  /* Us - Blue background */
+  background-color: rgba(0, 102, 204, 0.7) !important;
+}
+
+.text-block[style*="background-color: #e15759"] {
+  /* Now - Yellow background */
+  background-color: rgba(255, 215, 0, 0.7) !important;
+}
+
+.text-block[style*="background-color: #76b7b2"] {
+  /* Challenge - White with colored border */
+  background-color: white !important;
+  border: 2px solid #8b00ff !important; /* Purple border for Self */
+}
+
+.text-block[style*="background-color: #59a14f"] {
+  /* Choice - 50% opacity pattern */
+  background-image: linear-gradient(
+    45deg,
+    rgba(139, 0, 255, 0.5) 12.5%,
+    transparent 12.5%,
+    transparent 37.5%,
+    rgba(139, 0, 255, 0.5) 37.5%,
+    rgba(139, 0, 255, 0.5) 62.5%,
+    transparent 62.5%,
+    transparent 87.5%,
+    rgba(139, 0, 255, 0.5) 87.5%
+  ) !important;
+  background-size: 8px 8px !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.text-block[style*="background-color: #af7aa1"] {
+  /* Outcome - 100% opacity */
+  background-color: rgba(139, 0, 255, 1) !important;
+}
+
+/* Adjust border colors based on dominant story type */
+.text-block-self.text-block-challenge {
+  border-color: #8b00ff !important; /* Purple for Self */
+}
+
+.text-block-us.text-block-challenge {
+  border-color: #0066cc !important; /* Blue for Us */
+}
+
+.text-block-now.text-block-challenge {
+  border-color: #ffd700 !important; /* Yellow for Now */
+}
+
+.text-block-self.text-block-choice {
+  background-image: linear-gradient(
+    45deg,
+    rgba(139, 0, 255, 0.5) 12.5%,
+    transparent 12.5%,
+    transparent 37.5%,
+    rgba(139, 0, 255, 0.5) 37.5%,
+    rgba(139, 0, 255, 0.5) 62.5%,
+    transparent 62.5%,
+    transparent 87.5%,
+    rgba(139, 0, 255, 0.5) 87.5%
+  ) !important;
+}
+
+.text-block-us.text-block-choice {
+  background-image: linear-gradient(
+    45deg,
+    rgba(0, 102, 204, 0.5) 12.5%,
+    transparent 12.5%,
+    transparent 37.5%,
+    rgba(0, 102, 204, 0.5) 37.5%,
+    rgba(0, 102, 204, 0.5) 62.5%,
+    transparent 62.5%,
+    transparent 87.5%,
+    rgba(0, 102, 204, 0.5) 87.5%
+  ) !important;
+}
+
+.text-block-now.text-block-choice {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 215, 0, 0.5) 12.5%,
+    transparent 12.5%,
+    transparent 37.5%,
+    rgba(255, 215, 0, 0.5) 37.5%,
+    rgba(255, 215, 0, 0.5) 62.5%,
+    transparent 62.5%,
+    transparent 87.5%,
+    rgba(255, 215, 0, 0.5) 87.5%
+  ) !important;
+  color: black !important;
+}
+
+.text-block-self.text-block-outcome {
+  background-color: rgba(139, 0, 255, 1) !important;
+}
+
+.text-block-us.text-block-outcome {
+  background-color: rgba(0, 102, 204, 1) !important;
+}
+
+.text-block-now.text-block-outcome {
+  background-color: rgba(255, 215, 0, 1) !important;
+  color: black !important;
+}
+
+/* Override text-block color for narrative elements */
+.text-block-challenge {
+  background-color: white !important;
+  border: 2px solid;
+}
+
+.text-block-self.text-block-challenge {
+  border-color: #8b00ff !important; /* Purple for Self */
+  color: #333 !important;
+}
+
+.text-block-us.text-block-challenge {
+  border-color: #0066cc !important; /* Blue for Us */
+  color: #333 !important;
+}
+
+.text-block-now.text-block-challenge {
+  border-color: #ffd700 !important; /* Yellow for Now */
+  color: #333 !important;
+}
+
+.text-block-choice {
+  background-size: 8px 8px !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  background-image: none !important;
+}
+
+.text-block-self.text-block-choice {
+  background-image: none !important;
+  background-color: rgba(139, 0, 255, 0.5) !important;
+  color: white !important;
+}
+
+.text-block-us.text-block-choice {
+  background-image: none !important;
+  background-color: rgba(0, 102, 204, 0.5) !important;
+  color: white !important;
+}
+
+.text-block-now.text-block-choice {
+  background-image: none !important;
+  background-color: rgba(255, 215, 0, 0.5) !important;
+  color: black !important;
+}
+
+.text-block-outcome {
+  color: white !important;
+}
+
+.text-block-self.text-block-outcome {
+  background-color: rgba(139, 0, 255, 1) !important;
+}
+
+.text-block-us.text-block-outcome {
+  background-color: rgba(0, 102, 204, 1) !important;
+}
+
+.text-block-now.text-block-outcome {
+  background-color: rgba(255, 215, 0, 1) !important;
+  color: black !important;
+}
+
+/* Make text more readable */
+.text-block-self {
+  color: white !important;
+}
+
+.text-block-us {
+  color: white !important;
+}
+
+.text-block-now {
+  color: black !important;
 } 
